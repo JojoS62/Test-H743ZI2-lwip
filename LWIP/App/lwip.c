@@ -28,7 +28,6 @@
 #include "ethernetif.h"
 
 /* USER CODE BEGIN 0 */
-
 /* USER CODE END 0 */
 /* Private function prototypes -----------------------------------------------*/
 static void ethernet_link_status_updated(struct netif *netif);
@@ -51,6 +50,44 @@ ip4_addr_t netmask;
 ip4_addr_t gw;
 
 /* USER CODE BEGIN 2 */
+
+// Custom_MX_LWIP_Init () to override ethernet_init function for custom output function
+
+void Custom_MX_LWIP_Init()
+{
+  /* Initilialize the LwIP stack without RTOS */
+  lwip_init();
+
+  /* IP addresses initialization with DHCP (IPv4) */
+  ipaddr.addr = 0;
+  netmask.addr = 0;
+  gw.addr = 0;
+
+  /* add the network interface (IPv4/IPv6) without RTOS */
+  netif_add(&gnetif, &ipaddr, &netmask, &gw, NULL, &custom_ethernetif_init, &ethernet_input);
+
+  /* Registers the default network interface */
+  netif_set_default(&gnetif);
+
+  if (netif_is_link_up(&gnetif))
+  {
+    /* When the netif is fully configured this function must be called */
+    netif_set_up(&gnetif);
+  }
+  else
+  {
+    /* When the netif link is down this function must be called */
+    netif_set_down(&gnetif);
+  }
+
+  /* Set the link callback function, this function is called on change of link status*/
+  netif_set_link_callback(&gnetif, ethernet_link_status_updated);
+
+  /* Create the Ethernet link handler thread */
+
+  /* Start DHCP negotiation for a network interface (IPv4) */
+  dhcp_start(&gnetif);
+}
 
 /* USER CODE END 2 */
 
@@ -93,7 +130,6 @@ void MX_LWIP_Init(void)
   dhcp_start(&gnetif);
 
 /* USER CODE BEGIN 3 */
-
 /* USER CODE END 3 */
 }
 
@@ -162,13 +198,13 @@ static void ethernet_link_status_updated(struct netif *netif)
   if (netif_is_up(netif))
   {
 /* USER CODE BEGIN 5 */
-	  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+//    HAL_GPIO_WritePin(LED_LINK_Red_GPIO_Port, LED_LINK_Red_Pin, GPIO_PIN_SET);
 /* USER CODE END 5 */
   }
   else /* netif is down */
   {
 /* USER CODE BEGIN 6 */
-	  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
+//    HAL_GPIO_WritePin(LED_LINK_Red_GPIO_Port, LED_LINK_Red_Pin, GPIO_PIN_RESET);
 /* USER CODE END 6 */
   }
 }

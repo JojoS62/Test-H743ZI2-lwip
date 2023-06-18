@@ -41,6 +41,7 @@
 #endif /* WITH_RTOS */
 
 /* USER CODE BEGIN 0 */
+ void Custom_MX_LWIP_Init();
 
 /* USER CODE END 0 */
 

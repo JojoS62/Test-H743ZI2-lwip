@@ -27,6 +27,8 @@
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
 
+err_t custom_ethernetif_init(struct netif *netif);
+
 /* USER CODE END 0 */
 
 /* Exported functions ------------------------------------------------------- */

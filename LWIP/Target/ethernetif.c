@@ -96,15 +96,15 @@ static uint8_t RxAllocStatus;
 
 #if defined ( __ICCARM__ ) /*!< IAR Compiler */
 
-#pragma location=0x30040100
+#pragma location=0x30000000
 ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
-#pragma location=0x30040000
+#pragma location=0x30000100
 ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
 #elif defined ( __CC_ARM )  /* MDK ARM Compiler */
 
-__attribute__((at(0x30040100))) ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
-__attribute__((at(0x30040000))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
+__attribute__((at(0x30000000))) ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
+__attribute__((at(0x30000100))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
 #elif defined ( __GNUC__ ) /* GNU Compiler */
 
@@ -114,6 +114,23 @@ ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecr
 #endif
 
 /* USER CODE BEGIN 2 */
+/* ETH_CODE: placement of RX_POOL
+ * Please note this was tested only for GCC compiler.
+ * Additional code needed in linkerscript for GCC.
+ *
+ * Also this buffer can be placed in D1 SRAM
+ * if there is not sufficient space in D2.
+ * This can be case of STM32H72x/H73x devices.
+ * However the 32-byte alignment should be forced.
+ * Below is example of placement into BSS section
+ *
+ * . = ALIGN(32);
+ * *(.Rx_PoolSection)
+ * . = ALIGN(4);
+ * _ebss = .;
+ *  __bss_end__ = _ebss;
+ * } >RAM_D1
+ */
 #if defined ( __ICCARM__ ) /*!< IAR Compiler */
 #pragma location = 0x30040200
 extern u8_t memp_memory_RX_POOL_base[];
@@ -246,7 +263,108 @@ static void low_level_init(struct netif *netif)
 #endif /* LWIP_ARP || LWIP_ETHERNET */
 
 /* USER CODE BEGIN LOW_LEVEL_INIT */
+}
 
+//
+// low_level_output with cache maintanance
+//
+
+static err_t custom_low_level_output(struct netif *netif, struct pbuf *p)
+{
+  uint32_t i = 0U;
+  struct pbuf *q = NULL;
+  err_t errval = ERR_OK;
+  ETH_BufferTypeDef Txbuffer[ETH_TX_DESC_CNT] = {0};
+
+  memset(Txbuffer, 0 , ETH_TX_DESC_CNT*sizeof(ETH_BufferTypeDef));
+
+  for(q = p; q != NULL; q = q->next)
+  {
+    if(i >= ETH_TX_DESC_CNT)
+      return ERR_IF;
+
+    Txbuffer[i].buffer = q->payload;
+    Txbuffer[i].len = q->len;
+
+    const size_t cacheLineSize = 32;
+    uintptr_t beginAddrRounded = ((uintptr_t) q->payload) & ~((uintptr_t) (cacheLineSize - 1));
+    uintptr_t endAddr = ((uintptr_t) q->payload) + q->len;
+    uintptr_t endAddrRounded = ((endAddr % cacheLineSize) == 0) ? endAddr : endAddr + (cacheLineSize - (endAddr % cacheLineSize ));
+    size_t range = endAddrRounded - beginAddrRounded;
+
+    SCB_CleanDCache_by_Addr((void*) beginAddrRounded, range);
+
+
+    if(i>0)
+    {
+      Txbuffer[i-1].next = &Txbuffer[i];
+    }
+
+    if(q->next == NULL)
+    {
+      Txbuffer[i].next = NULL;
+    }
+
+    i++;
+  }
+
+  TxConfig.Length = p->tot_len;
+  TxConfig.TxBuffer = Txbuffer;
+  TxConfig.pData = p;
+
+  errval = (HAL_ETH_Transmit(&heth, &TxConfig, ETH_DMA_TRANSMIT_TIMEOUT) == HAL_OK) ? ERR_OK : ERR_IF;
+
+  return errval;
+}
+
+//
+//  custom init to use low level output with cache maintanance
+//
+
+ err_t custom_ethernetif_init(struct netif *netif)
+ {
+   LWIP_ASSERT("netif != NULL", (netif != NULL));
+
+ #if LWIP_NETIF_HOSTNAME
+   /* Initialize interface hostname */
+   netif->hostname = "lwip";
+ #endif /* LWIP_NETIF_HOSTNAME */
+
+   /*
+    * Initialize the snmp variables and counters inside the struct netif.
+    * The last argument should be replaced with your link speed, in units
+    * of bits per second.
+    */
+   // MIB2_INIT_NETIF(netif, snmp_ifType_ethernet_csmacd, LINK_SPEED_OF_YOUR_NETIF_IN_BPS);
+
+   netif->name[0] = IFNAME0;
+   netif->name[1] = IFNAME1;
+   /* We directly use etharp_output() here to save a function call.
+    * You can instead declare your own function an call etharp_output()
+    * from it if you have to do some checks before sending (e.g. if link
+    * is available...) */
+
+ #if LWIP_IPV4
+ #if LWIP_ARP || LWIP_ETHERNET
+ #if LWIP_ARP
+   netif->output = etharp_output;
+ #else
+   /* The user should write its own code in low_level_output_arp_off function */
+   netif->output = low_level_output_arp_off;
+ #endif /* LWIP_ARP */
+ #endif /* LWIP_ARP || LWIP_ETHERNET */
+ #endif /* LWIP_IPV4 */
+
+ #if LWIP_IPV6
+   netif->output_ip6 = ethip6_output;
+ #endif /* LWIP_IPV6 */
+
+   netif->linkoutput = custom_low_level_output;
+
+   /* initialize the hardware */
+   low_level_init(netif);
+
+   return ERR_OK;
 /* USER CODE END LOW_LEVEL_INIT */
 }
 
@@ -450,6 +568,17 @@ void pbuf_free_custom(struct pbuf *p)
 }
 
 /* USER CODE BEGIN 6 */
+
+/**
+* @brief  Returns the current time in milliseconds
+*         when LWIP_TIMERS == 1 and NO_SYS == 1
+* @param  None
+* @retval Current Time value
+*/
+u32_t sys_jiffies(void)
+{
+  return HAL_GetTick();
+}
 
 /**
 * @brief  Returns the current time in milliseconds
