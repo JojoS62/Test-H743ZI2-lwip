@@ -44,6 +44,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+extern struct netif gnetif;
 
 /* USER CODE END PV */
 
@@ -70,6 +71,7 @@ int _write(int file, char *ptr, int len)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  uint32_t cnt = 0;
 
   /* USER CODE END 1 */
 
@@ -116,7 +118,29 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  MX_LWIP_Process();
+    MX_LWIP_Process();
+    cnt++;
+      // Read PHY link status
+
+    if(netif_is_link_up(&gnetif) )
+    {
+      if(!dhcp_supplied_address(&gnetif) && cnt >= 30000000)
+      {
+        // Link status = disconnected
+        netif_set_down(&gnetif);
+        netif_set_link_down(&gnetif);
+
+        HAL_Delay(2000);
+        MX_LWIP_Process();
+
+        // Link status = connected
+        netif_set_up(&gnetif);
+        netif_set_link_up(&gnetif);
+
+        dhcp_start(&gnetif);
+        cnt = 0;
+      }
+    }
   }
   /* USER CODE END 3 */
 }
