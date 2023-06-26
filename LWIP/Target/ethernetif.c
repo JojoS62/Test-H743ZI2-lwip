@@ -249,7 +249,8 @@ static void low_level_init(struct netif *netif)
   LAN8742_RegisterBusIO(&LAN8742, &LAN8742_IOCtx);
 
   /* Initialize the LAN8742 ETH PHY */
-  LAN8742_Init(&LAN8742);
+  int32_t rc = LAN8742_Init(&LAN8742);
+  printf("LAN8742_Init: %ld\n", rc);
 
   if (hal_eth_init_status == HAL_OK)
   {
@@ -797,21 +798,25 @@ void ethernet_link_check_state(struct netif *netif)
       duplex = ETH_FULLDUPLEX_MODE;
       speed = ETH_SPEED_100M;
       linkchanged = 1;
+      printf("Linkstatus: 100M FullDuplex\n");
       break;
     case LAN8742_STATUS_100MBITS_HALFDUPLEX:
       duplex = ETH_HALFDUPLEX_MODE;
       speed = ETH_SPEED_100M;
       linkchanged = 1;
+      printf("Linkstatus: 100M HalfDuplex\n");
       break;
     case LAN8742_STATUS_10MBITS_FULLDUPLEX:
       duplex = ETH_FULLDUPLEX_MODE;
       speed = ETH_SPEED_10M;
       linkchanged = 1;
+      printf("Linkstatus: 10M FullDuplex\n");
       break;
     case LAN8742_STATUS_10MBITS_HALFDUPLEX:
       duplex = ETH_HALFDUPLEX_MODE;
       speed = ETH_SPEED_10M;
       linkchanged = 1;
+      printf("Linkstatus: 10M HalfDuplex\n");
       break;
     default:
       break;
