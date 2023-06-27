@@ -716,6 +716,9 @@ int32_t ETH_PHY_IO_Init(void)
   /* Configure the MDIO Clock */
   HAL_ETH_SetMDIOClockRange(&heth);
 
+  /* reading SMR returns invalid values without this delay */
+  HAL_Delay(100);
+
   return 0;
 }
 
