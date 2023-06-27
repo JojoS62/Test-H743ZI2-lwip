@@ -105,6 +105,10 @@ int main(void)
   MX_USART3_UART_Init();
   MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
+  HAL_GPIO_WritePin(TestPin_0_GPIO_Port, TestPin_0_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(TestPin_1_GPIO_Port, TestPin_1_Pin, GPIO_PIN_RESET);
+
+  HAL_Delay(100);
   Custom_MX_LWIP_Init();
   //MX_LWIP_Init();
 
