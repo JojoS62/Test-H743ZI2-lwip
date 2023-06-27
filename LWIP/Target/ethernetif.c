@@ -30,6 +30,7 @@
 #include "ethernetif.h"
 #include "lan8742.h"
 #include <string.h>
+#include "main.h"
 
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
@@ -712,12 +713,11 @@ int32_t ETH_PHY_IO_Init(void)
   /* We assume that MDIO GPIO configuration is already done
      in the ETH_MspInit() else it should be done here
   */
+  HAL_GPIO_WritePin(TestPin_0_GPIO_Port, TestPin_0_Pin, GPIO_PIN_SET);
 
   /* Configure the MDIO Clock */
   HAL_ETH_SetMDIOClockRange(&heth);
 
-  /* reading SMR returns invalid values without this delay */
-  HAL_Delay(100);
 
   return 0;
 }
