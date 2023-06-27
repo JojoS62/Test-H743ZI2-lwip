@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "lan8742.h"
+#include "main.h"
 
 /** @addtogroup BSP
   * @{
@@ -98,6 +99,8 @@ int32_t  LAN8742_RegisterBusIO(lan8742_Object_t *pObj, lan8742_IOCtx_t *ioctx)
        pObj->IO.Init();
      }
    
+     HAL_GPIO_WritePin(TestPin_1_GPIO_Port, TestPin_1_Pin, GPIO_PIN_SET);
+
      /* for later check */
      pObj->DevAddr = LAN8742_MAX_DEV_ADDR + 1;
    
